@@ -31,6 +31,7 @@ type runner struct {
 	targets []Target
 }
 
+// Target represents a pair of a function and an argument with allowed types.
 type Target struct {
 	// Package path of the target function
 	PkgPath string
@@ -43,8 +44,12 @@ type Target struct {
 	Allowed []Allowed
 }
 
+// Allowed is a type that is allowed for the argument.
 type Allowed struct {
-	PkgPath  string
+	// The path of the package that defines the type.
+	// If the type is builtin, let it be an empty string.
+	PkgPath string
+	// The name of the type.
 	TypeName string
 }
 
@@ -55,8 +60,8 @@ func (r *runner) run(pass *analysis.Pass) (any, error) {
 	inspect.Preorder(nil, func(n ast.Node) {
 		switch n := n.(type) {
 		case *ast.CallExpr:
-			if !allow(pass, targets, n) {
-				pass.Reportf(n.Pos(), "not allowed")
+			if result := toBeReported(pass, targets, n); result != nil {
+				pass.Reportf(n.Pos(), "%s is not allowed for the %dth arg of %s", result.ArgType, result.ArgPos+1, result.Func)
 			}
 		}
 	})
@@ -90,19 +95,53 @@ func toAnalysisTargets(pass *analysis.Pass, targets []Target) []*analysisTarget 
 	return ret
 }
 
-func allow(pass *analysis.Pass, targets []*analysisTarget, n *ast.CallExpr) bool {
+// toBeReported reports whether the call expression n should be reported.
+// If nill is returned, it means that n should not be reported.
+func toBeReported(pass *analysis.Pass, targets []*analysisTarget, n *ast.CallExpr) *notAllowed {
+	ft := pass.TypesInfo.TypeOf(n.Fun)
+	sig, ok := ft.(*types.Signature)
+	if !ok {
+		return nil
+	}
 	for _, t := range targets {
-		if !types.Identical(t.Func, pass.TypesInfo.Types[n.Fun].Type) {
+		if !types.Identical(t.Func, ft) {
 			continue
 		}
 		if len(n.Args) <= t.ArgPos {
 			continue
 		}
-		arg := n.Args[t.ArgPos]
-		argType := pass.TypesInfo.Types[arg].Type
-		if _, ok := t.Allowed[argType]; !ok {
-			return false
+		if !sig.Variadic() {
+			arg := n.Args[t.ArgPos]
+			argType := pass.TypesInfo.Types[arg].Type
+			if _, ok := t.Allowed[argType]; !ok {
+				return &notAllowed{
+					ArgExpr: arg,
+					ArgType: argType,
+					ArgPos:  t.ArgPos,
+					Func:    ft,
+				}
+			}
+			continue
+		}
+		for p := t.ArgPos; p < len(n.Args); p++ {
+			arg := n.Args[p]
+			argType := pass.TypesInfo.Types[arg].Type
+			if _, ok := t.Allowed[argType]; !ok {
+				return &notAllowed{
+					ArgExpr: arg,
+					ArgType: argType,
+					ArgPos:  p,
+					Func:    ft,
+				}
+			}
 		}
 	}
-	return true
+	return nil
+}
+
+type notAllowed struct {
+	ArgExpr ast.Expr
+	ArgType types.Type
+	ArgPos  int
+	Func    types.Type
 }
