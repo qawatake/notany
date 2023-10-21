@@ -38,5 +38,20 @@ func TestAnalyzer(t *testing.T) {
 				},
 			},
 		},
+		notany.Target{
+			PkgPath:  "github.com/qawatake/example",
+			FuncName: "Any",
+			ArgPos:   0,
+			Allowed: []notany.Allowed{
+				{
+					PkgPath:  "",
+					TypeName: "string",
+				},
+				{
+					PkgPath:  "github.com/qawatake/example",
+					TypeName: "MyInt",
+				},
+			},
+		},
 	), "a")
 }
