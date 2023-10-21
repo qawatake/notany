@@ -16,6 +16,27 @@ func TestAnalyzer(t *testing.T) {
 			PkgPath:  "a",
 			FuncName: "Target1",
 			ArgPos:   1,
+			Allowed: []limited.Allowed{
+				{
+					PkgPath:  "",
+					TypeName: "int",
+				},
+				{
+					PkgPath:  "",
+					TypeName: "string",
+				},
+			},
+		},
+		limited.Target{
+			PkgPath:  "fmt",
+			FuncName: "Println",
+			ArgPos:   0,
+			Allowed: []limited.Allowed{
+				{
+					PkgPath:  "a",
+					TypeName: "MyInt",
+				},
+			},
 		},
 	), "a")
 }
