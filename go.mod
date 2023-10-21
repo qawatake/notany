@@ -1,4 +1,4 @@
-module github.com/qawatake/limited
+module github.com/qawatake/notany
 
 go 1.21.3
 

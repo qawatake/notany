@@ -1,22 +1,22 @@
-package limited_test
+package notany_test
 
 import (
 	"testing"
 
 	"github.com/gostaticanalysis/testutil"
-	"github.com/qawatake/limited"
+	"github.com/qawatake/notany"
 	"golang.org/x/tools/go/analysis/analysistest"
 )
 
 // TestAnalyzer is a test for Analyzer.
 func TestAnalyzer(t *testing.T) {
 	testdata := testutil.WithModules(t, analysistest.TestData(), nil)
-	analysistest.Run(t, testdata, limited.NewAnalyzer(
-		limited.Target{
+	analysistest.Run(t, testdata, notany.NewAnalyzer(
+		notany.Target{
 			PkgPath:  "a",
 			FuncName: "Target",
 			ArgPos:   1,
-			Allowed: []limited.Allowed{
+			Allowed: []notany.Allowed{
 				{
 					PkgPath:  "",
 					TypeName: "int",
@@ -27,11 +27,11 @@ func TestAnalyzer(t *testing.T) {
 				},
 			},
 		},
-		limited.Target{
+		notany.Target{
 			PkgPath:  "fmt",
 			FuncName: "Println",
 			ArgPos:   0,
-			Allowed: []limited.Allowed{
+			Allowed: []notany.Allowed{
 				{
 					PkgPath:  "a",
 					TypeName: "MyInt",

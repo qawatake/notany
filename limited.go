@@ -1,4 +1,4 @@
-package limited
+package notany
 
 import (
 	"go/ast"
@@ -10,8 +10,8 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 )
 
-const name = "limited"
-const doc = "limited limits possible types for argument of type any"
+const name = "notany"
+const doc = "notany limits possible types for argument of type any"
 
 func NewAnalyzer(targets ...Target) *analysis.Analyzer {
 	r := &runner{
