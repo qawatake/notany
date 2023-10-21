@@ -14,7 +14,7 @@ func TestAnalyzer(t *testing.T) {
 	analysistest.Run(t, testdata, limited.NewAnalyzer(
 		limited.Target{
 			PkgPath:  "a",
-			FuncName: "Target1",
+			FuncName: "Target",
 			ArgPos:   1,
 			Allowed: []limited.Allowed{
 				{
