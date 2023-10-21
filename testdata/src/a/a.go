@@ -16,9 +16,10 @@ func f() {
 	Target2(1, nil, "3") // ok
 
 	// variadic
-	fmt.Println(1)           // want "not allowed"
-	fmt.Println(MyInt(1))    // ok
-	fmt.Println(MyInt(1), 1) // want "not allowed"
+	fmt.Println(1)                  // want "not allowed"
+	fmt.Println(MyInt(1))           // ok
+	fmt.Println(MyInt(1), 1)        // want "not allowed"
+	fmt.Println(MyInt(1), MyInt(1)) // ok
 }
 
 // b must be either int or string
