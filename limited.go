@@ -70,7 +70,7 @@ func (r *runner) run(pass *analysis.Pass) (any, error) {
 }
 
 type analysisTarget struct {
-	Func    types.Type
+	Func    types.Object
 	ArgPos  int
 	Allowed map[types.Type]struct{}
 }
@@ -87,7 +87,7 @@ func toAnalysisTargets(pass *analysis.Pass, targets []Target) []*analysisTarget 
 			allowed[analysisutil.TypeOf(pass, a.PkgPath, a.TypeName)] = struct{}{}
 		}
 		ret = append(ret, &analysisTarget{
-			Func:    analysisutil.TypeOf(pass, t.PkgPath, t.FuncName),
+			Func:    analysisutil.ObjectOf(pass, t.PkgPath, t.FuncName),
 			ArgPos:  t.ArgPos,
 			Allowed: allowed,
 		})
@@ -98,13 +98,26 @@ func toAnalysisTargets(pass *analysis.Pass, targets []Target) []*analysisTarget 
 // toBeReported reports whether the call expression n should be reported.
 // If nill is returned, it means that n should not be reported.
 func toBeReported(pass *analysis.Pass, targets []*analysisTarget, n *ast.CallExpr) *notAllowed {
-	ft := pass.TypesInfo.TypeOf(n.Fun)
-	sig, ok := ft.(*types.Signature)
+	switch f := n.Fun.(type) {
+	case *ast.Ident:
+		return x(pass, targets, n, f)
+	case *ast.SelectorExpr:
+		return x(pass, targets, n, f.Sel)
+	}
+	return nil
+}
+
+func x(pass *analysis.Pass, targets []*analysisTarget, n *ast.CallExpr, f *ast.Ident) *notAllowed {
+	obj, ok := pass.TypesInfo.ObjectOf(f).(*types.Func)
+	if !ok {
+		return nil
+	}
+	sig, ok := obj.Type().(*types.Signature)
 	if !ok {
 		return nil
 	}
 	for _, t := range targets {
-		if !types.Identical(t.Func, ft) {
+		if t.Func != obj {
 			continue
 		}
 		if len(n.Args) <= t.ArgPos {
@@ -118,7 +131,7 @@ func toBeReported(pass *analysis.Pass, targets []*analysisTarget, n *ast.CallExp
 					ArgExpr: arg,
 					ArgType: argType,
 					ArgPos:  t.ArgPos,
-					Func:    ft,
+					Func:    obj,
 				}
 			}
 			continue
@@ -131,7 +144,7 @@ func toBeReported(pass *analysis.Pass, targets []*analysisTarget, n *ast.CallExp
 					ArgExpr: arg,
 					ArgType: argType,
 					ArgPos:  p,
-					Func:    ft,
+					Func:    obj,
 				}
 			}
 		}
@@ -143,5 +156,5 @@ type notAllowed struct {
 	ArgExpr ast.Expr
 	ArgType types.Type
 	ArgPos  int
-	Func    types.Type
+	Func    *types.Func
 }
