@@ -13,11 +13,11 @@ type AllowedType struct{}
 
 ```go
 func main() {
-  pkg.FuncWithAnyTypeArg("ok") // ok
-  pkg.FuncWithAnyTypeArg(1) // ok
+  pkg.FuncWithAnyTypeArg("ok")          // ok
+  pkg.FuncWithAnyTypeArg(1)             // ok
   pkg.FuncWithAnyTypeArg(AllowedType{}) // ok
-  pkg.FuncWithAnyTypeArg(1.0) // <- float64 is not allowed
-  pkg.FuncWithAnyTypeArg(true) // <- bool is not allowed
+  pkg.FuncWithAnyTypeArg(1.0)           // <- float64 is not allowed
+  pkg.FuncWithAnyTypeArg(true)          // <- bool is not allowed
 }
 ```
 
@@ -29,34 +29,34 @@ Build your `notany` binary by writing `main.go` like below.
 package main
 
 import (
-	"github.com/qawatake/notany"
-	"golang.org/x/tools/go/analysis/unitchecker"
+  "github.com/qawatake/notany"
+  "golang.org/x/tools/go/analysis/unitchecker"
 )
 
 func main() {
-	unitchecker.Main(
-		notany.NewAnalyzer(
-			notany.Target{
-				PkgPath:  "pkg/in/which/target/func/is/defined",
-				FuncName: "FuncWithAnyTypeArg",
-				ArgPos:   1,
-				Allowed: []notany.Allowed{
-					{
-						PkgPath:  "",
-						TypeName: "int",
-					},
-					{
-						PkgPath:  "",
-						TypeName: "string",
-					},
-					{
-						PkgPath:  "pkg/in/which/allowed/type/is/defined",
-						TypeName: "AllowedType",
-					},
-				},
-			},
-		),
-	)
+  unitchecker.Main(
+    notany.NewAnalyzer(
+      notany.Target{
+        PkgPath:  "pkg/in/which/target/func/is/defined",
+        FuncName: "FuncWithAnyTypeArg",
+        ArgPos:   1,
+        Allowed: []notany.Allowed{
+          {
+            PkgPath:  "",
+            TypeName: "int",
+          },
+          {
+            PkgPath:  "",
+            TypeName: "string",
+          },
+          {
+            PkgPath:  "pkg/in/which/allowed/type/is/defined",
+            TypeName: "AllowedType",
+          },
+        },
+      },
+    ),
+  )
 }
 ```
 
