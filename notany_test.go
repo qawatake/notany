@@ -25,6 +25,29 @@ func TestAnalyzer(t *testing.T) {
 					PkgPath:  "",
 					TypeName: "string",
 				},
+				{
+					PkgPath:  "",
+					TypeName: "uint8",
+				},
+				{
+					PkgPath:  "",
+					TypeName: "int32",
+				},
+			},
+		},
+		notany.Target{
+			PkgPath:  "a",
+			FuncName: "Target3",
+			ArgPos:   1,
+			Allowed: []notany.Allowed{
+				{
+					PkgPath:  "",
+					TypeName: "rune",
+				},
+				{
+					PkgPath:  "",
+					TypeName: "byte",
+				},
 			},
 		},
 		notany.Target{

@@ -8,10 +8,19 @@ import (
 
 func f() {
 	// limited
-	Target(nil, 2, "3") // ok
-	Target(1, "2", 3.3) // ok
-	Target(1, 1.1, "3") // want "not allowed"
-	Target(1, nil, "3") // want "not allowed"
+	Target(nil, 2, "3")    // ok
+	Target(1, "2", 3.3)    // ok
+	Target(1, 1.1, "3")    // want "not allowed"
+	Target(1, nil, "3")    // want "not allowed"
+	Target(1, str("2"), 3) // ok because str is an alias of string
+
+	// builtin alias
+	Target(1, uint8(1), 3)  // ok
+	Target(1, byte(1), 3)   // ok because byte is an alias of uint8
+	Target(1, int32(1), 3)  // ok
+	Target(1, rune(1), 3)   // ok because rune is an alias of int32
+	Target3(1, int32(1), 3) // ok
+	Target(1, byte(1), 3)   // ok
 
 	// not limited
 	Target2(nil, 2, "3") // ok
@@ -44,11 +53,16 @@ func f() {
 	HigherOrder()()
 }
 
-// b must be either int or string
+// b must be either int, string, uint8, or int32.
 func Target(a any, b any, c any) {}
 
-// b can be any type
+type str = string
+
+// b can be any type.
 func Target2(a any, b any, c any) {}
+
+// b can be rune or byte.
+func Target3(a any, b any, c any) {}
 
 type MyInt int
 

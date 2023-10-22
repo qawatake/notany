@@ -83,7 +83,21 @@ func toAnalysisTargets(pass *analysis.Pass, targets []Target) []*analysisTarget 
 		allowed := make(map[types.Type]struct{})
 		for _, a := range t.Allowed {
 			if a.PkgPath == "" {
-				allowed[types.Universe.Lookup(a.TypeName).Type()] = struct{}{}
+				typ := types.Universe.Lookup(a.TypeName).Type()
+				allowed[typ] = struct{}{}
+				// builtin alias
+				switch typ {
+				case types.Typ[types.Uint8]:
+					// byteType != types.Typ[types.Byte]
+					allowed[byteType] = struct{}{}
+				case types.Typ[types.Int32]:
+					// runeType != types.Typ[types.Rune]
+					allowed[runeType] = struct{}{}
+				case byteType:
+					allowed[types.Typ[types.Uint8]] = struct{}{}
+				case runeType:
+					allowed[types.Typ[types.Int32]] = struct{}{}
+				}
 				continue
 			}
 			allowed[analysisutil.TypeOf(pass, a.PkgPath, a.TypeName)] = struct{}{}
@@ -96,6 +110,9 @@ func toAnalysisTargets(pass *analysis.Pass, targets []Target) []*analysisTarget 
 	}
 	return ret
 }
+
+var byteType = types.Universe.Lookup("byte").Type()
+var runeType = types.Universe.Lookup("rune").Type()
 
 func objectOf(pass *analysis.Pass, t Target) types.Object {
 	// function
