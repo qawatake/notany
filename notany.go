@@ -104,7 +104,7 @@ func objectOf(pass *analysis.Pass, t Target) types.Object {
 	}
 	tt := strings.Split(t.FuncName, ".")
 	if len(tt) != 2 {
-		panic(fmt.Sprintf("invalid FuncName %s", t.FuncName))
+		panics(fmt.Sprintf("invalid FuncName %s", t.FuncName))
 	}
 	// method
 	recv := tt[0]
@@ -112,6 +112,8 @@ func objectOf(pass *analysis.Pass, t Target) types.Object {
 	recvType := analysisutil.TypeOf(pass, t.PkgPath, recv)
 	return analysisutil.MethodOf(recvType, method)
 }
+
+var panics = func(v any) { panic(v) }
 
 // toBeReported reports whether the call expression n should be reported.
 // If nill is returned, it means that n should not be reported.
@@ -130,15 +132,9 @@ func x(pass *analysis.Pass, targets []*analysisTarget, n *ast.CallExpr, f *ast.I
 	if !ok {
 		return nil
 	}
-	sig, ok := obj.Type().(*types.Signature)
-	if !ok {
-		return nil
-	}
+	sig, _ := obj.Type().(*types.Signature)
 	for _, t := range targets {
 		if t.Func != obj {
-			continue
-		}
-		if len(n.Args) <= t.ArgPos {
 			continue
 		}
 		if !sig.Variadic() {

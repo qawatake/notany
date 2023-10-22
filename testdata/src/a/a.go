@@ -40,6 +40,8 @@ func f() {
 	// method of pointer receiver
 	s.Scan2(true) // ok because bool is allowed.
 	s.Scan2(nil)  // want "not allowed"
+
+	HigherOrder()()
 }
 
 // b must be either int or string
@@ -57,3 +59,5 @@ func (s Struct) Scan(v any) {}
 
 // v must be bool
 func (s *Struct) Scan2(v any) {}
+
+func HigherOrder() func() { return func() {} }
