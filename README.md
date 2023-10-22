@@ -7,7 +7,7 @@
 Linter `notany` limits possible types for arguments of any type.
 
 ```go
-// arg must be string, fmt.Stringer, or MyInt.
+// arg must be string, fmt.Stringer, or AllowedType.
 func FuncWithAnyTypeArg(arg any) {
   // ...
 }
