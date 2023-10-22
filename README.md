@@ -1,0 +1,67 @@
+# notany
+
+Linter `notany` limits possible types for arguments of any type.
+
+```go
+// arg must be string, int, or MyInt.
+func FuncWithAnyTypeArg(arg any) {
+  // ...
+}
+
+type AllowedType struct{}
+```
+
+```go
+func main() {
+  pkg.FuncWithAnyTypeArg("ok") // ok
+  pkg.FuncWithAnyTypeArg(1) // ok
+  pkg.FuncWithAnyTypeArg(AllowedType{}) // ok
+  pkg.FuncWithAnyTypeArg(1.0) // <- float64 is not allowed
+  pkg.FuncWithAnyTypeArg(true) // <- bool is not allowed
+}
+```
+
+## How to use
+
+Build your `dwrap` binary by writing `main.go` like below.
+
+```go
+package main
+
+import (
+  "github.com/qawatake/notany"
+  "golang.org/x/tools/go/analysis/unitchecker"
+)
+
+func main() {
+  unitchecker.Main(
+	  notany.NewAnalyzer(
+		  notany.Target{
+		  	PkgPath:  "pkg/in/which/target/func/is/defined",
+		  	FuncName: "FuncWithAnyTypeArg",
+		  	ArgPos:   1,
+		  	Allowed: []notany.Allowed{
+		  		{
+		  			PkgPath:  "",
+		  			TypeName: "int",
+		  		},
+		  		{
+		  			PkgPath:  "",
+		  			TypeName: "string",
+		  		},
+		  		{
+		  			PkgPath: "pkg/in/which/allowed/type/is/defined",
+		  			TypeName: "AllowedType",
+		  		},
+		  	},
+		  },
+	  ),
+  )
+}
+```
+
+Then, run `go vet` with your `notany` binary.
+
+```sh
+go vet -vettool=/path/to/your/notany ./...
+```
