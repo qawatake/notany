@@ -37,6 +37,7 @@ func f() {
 	s.Scan(MyInt(1)) // ok because MyInt is allowed.
 	s.Scan("bad")    // want "not allowed"
 
+	// method of pointer receiver
 	s.Scan2(true) // ok because bool is allowed.
 	s.Scan2(nil)  // want "not allowed"
 }
