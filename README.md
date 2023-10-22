@@ -7,7 +7,7 @@
 Linter `notany` limits possible types for arguments of any type.
 
 ```go
-// arg must be string, int, or MyInt.
+// arg must be string, fmt.Stringer, or MyInt.
 func FuncWithAnyTypeArg(arg any) {
   // ...
 }
@@ -18,7 +18,7 @@ type AllowedType struct{}
 ```go
 func main() {
   pkg.FuncWithAnyTypeArg("ok")          // ok
-  pkg.FuncWithAnyTypeArg(1)             // ok
+  pkg.FuncWithAnyTypeArg(time.Now())    // ok because time.Time implements fmt.Stringer
   pkg.FuncWithAnyTypeArg(AllowedType{}) // ok
   pkg.FuncWithAnyTypeArg(1.0)           // <- float64 is not allowed
   pkg.FuncWithAnyTypeArg(true)          // <- bool is not allowed
@@ -50,8 +50,8 @@ func main() {
             TypeName: "int",
           },
           {
-            PkgPath:  "",
-            TypeName: "string",
+            PkgPath:  "fmt",
+            TypeName: "Stringer",
           },
           {
             PkgPath:  "pkg/in/which/allowed/type/is/defined",
