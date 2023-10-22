@@ -30,6 +30,15 @@ func f() {
 	example.Any(1)                // want "not allowed"
 	example.Any(example.MyInt(1)) // ok because example.MyInt is allowed.
 	example.Any(MyInt(1))         // want "not allowed"
+
+	// method
+	var s Struct
+	s.Scan(1)        // ok because int is allowed.
+	s.Scan(MyInt(1)) // ok because MyInt is allowed.
+	s.Scan("bad")    // want "not allowed"
+
+	s.Scan2(true) // ok because bool is allowed.
+	s.Scan2(nil)  // want "not allowed"
 }
 
 // b must be either int or string
@@ -39,3 +48,11 @@ func Target(a any, b any, c any) {}
 func Target2(a any, b any, c any) {}
 
 type MyInt int
+
+type Struct struct{}
+
+// v must be either MyInt or int
+func (s Struct) Scan(v any) {}
+
+// v must be bool
+func (s *Struct) Scan2(v any) {}

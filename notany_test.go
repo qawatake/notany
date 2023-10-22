@@ -53,5 +53,20 @@ func TestAnalyzer(t *testing.T) {
 				},
 			},
 		},
+		notany.Target{
+			PkgPath:  "a",
+			FuncName: "Struct.Scan",
+			ArgPos:   0,
+			Allowed: []notany.Allowed{
+				{
+					PkgPath:  "",
+					TypeName: "int",
+				},
+				{
+					PkgPath:  "a",
+					TypeName: "MyInt",
+				},
+			},
+		},
 	), "a")
 }
