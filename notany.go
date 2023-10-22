@@ -168,7 +168,8 @@ func x(pass *analysis.Pass, targets []*analysisTarget, n *ast.CallExpr, f *ast.I
 		if t.Func != obj {
 			continue
 		}
-		if !sig.Variadic() {
+		switch {
+		case !sig.Variadic():
 			arg := n.Args[t.ArgPos]
 			argType := pass.TypesInfo.Types[arg].Type
 			if !t.Allow(argType) {
@@ -180,18 +181,20 @@ func x(pass *analysis.Pass, targets []*analysisTarget, n *ast.CallExpr, f *ast.I
 				}
 			}
 			continue
-		}
-		for p := t.ArgPos; p < len(n.Args); p++ {
-			arg := n.Args[p]
-			argType := pass.TypesInfo.Types[arg].Type
-			if !t.Allow(argType) {
-				return &notAllowed{
-					ArgExpr: arg,
-					ArgType: argType,
-					ArgPos:  p,
-					Func:    obj,
+		case sig.Variadic():
+			for p := t.ArgPos; p < len(n.Args); p++ {
+				arg := n.Args[p]
+				argType := pass.TypesInfo.Types[arg].Type
+				if !t.Allow(argType) {
+					return &notAllowed{
+						ArgExpr: arg,
+						ArgType: argType,
+						ArgPos:  p,
+						Func:    obj,
+					}
 				}
 			}
+			continue
 		}
 	}
 	return nil
