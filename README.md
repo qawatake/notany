@@ -1,5 +1,9 @@
 # notany
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/qawatake/notany.svg)](https://pkg.go.dev/github.com/qawatake/notany)
+[![test](https://github.com/qawatake/notany/actions/workflows/test.yaml/badge.svg)](https://github.com/qawatake/notany/actions/workflows/test.yaml)
+[![codecov](https://codecov.io/gh/qawatake/notany/graph/badge.svg?token=mjocIOzSRm)](https://codecov.io/gh/qawatake/notany)
+
 Linter `notany` limits possible types for arguments of any type.
 
 ```go
