@@ -11,7 +11,7 @@ import (
 )
 
 const name = "notany"
-const doc = "notany limits possible types for argument of type any"
+const doc = "notany limits possible types for arguments of any type"
 
 func NewAnalyzer(targets ...Target) *analysis.Analyzer {
 	r := &runner{
