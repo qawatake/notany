@@ -51,6 +51,21 @@ func TestAnalyzer(t *testing.T) {
 			},
 		},
 		notany.Target{
+			PkgPath:  "a",
+			FuncName: "Target4",
+			ArgPos:   1,
+			Allowed: []notany.Allowed{
+				{
+					PkgPath:  "",
+					TypeName: "int",
+				},
+				{
+					PkgPath:  "fmt",
+					TypeName: "Stringer",
+				},
+			},
+		},
+		notany.Target{
 			PkgPath:  "fmt",
 			FuncName: "Println",
 			ArgPos:   0,

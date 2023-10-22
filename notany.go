@@ -71,12 +71,6 @@ func (r *runner) run(pass *analysis.Pass) (any, error) {
 	return nil, nil
 }
 
-type analysisTarget struct {
-	Func    types.Object
-	ArgPos  int
-	Allowed map[types.Type]struct{}
-}
-
 func toAnalysisTargets(pass *analysis.Pass, targets []Target) []*analysisTarget {
 	var ret []*analysisTarget
 	for _, t := range targets {
@@ -109,6 +103,26 @@ func toAnalysisTargets(pass *analysis.Pass, targets []Target) []*analysisTarget 
 		})
 	}
 	return ret
+}
+
+type analysisTarget struct {
+	Func    types.Object
+	ArgPos  int
+	Allowed map[types.Type]struct{}
+}
+
+func (a *analysisTarget) Allow(t types.Type) bool {
+	if _, ok := a.Allowed[t]; ok {
+		return true
+	}
+	for at := range a.Allowed {
+		if i, ok := at.Underlying().(*types.Interface); ok {
+			if types.Implements(t, i) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 var byteType = types.Universe.Lookup("byte").Type()
@@ -157,7 +171,7 @@ func x(pass *analysis.Pass, targets []*analysisTarget, n *ast.CallExpr, f *ast.I
 		if !sig.Variadic() {
 			arg := n.Args[t.ArgPos]
 			argType := pass.TypesInfo.Types[arg].Type
-			if _, ok := t.Allowed[argType]; !ok {
+			if !t.Allow(argType) {
 				return &notAllowed{
 					ArgExpr: arg,
 					ArgType: argType,
@@ -170,7 +184,7 @@ func x(pass *analysis.Pass, targets []*analysisTarget, n *ast.CallExpr, f *ast.I
 		for p := t.ArgPos; p < len(n.Args); p++ {
 			arg := n.Args[p]
 			argType := pass.TypesInfo.Types[arg].Type
-			if _, ok := t.Allowed[argType]; !ok {
+			if !t.Allow(argType) {
 				return &notAllowed{
 					ArgExpr: arg,
 					ArgType: argType,

@@ -2,6 +2,7 @@ package a
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/qawatake/example"
 )
@@ -21,6 +22,10 @@ func f() {
 	Target(1, rune(1), 3)   // ok because rune is an alias of int32
 	Target3(1, int32(1), 3) // ok
 	Target(1, byte(1), 3)   // ok
+
+	// interface
+	Target4(1, 1, 1)          // ok because int is allowed.
+	Target4(1, time.Now(), 1) // ok because time.Time implements fmt.Stringer
 
 	// not limited
 	Target2(nil, 2, "3") // ok
@@ -63,6 +68,9 @@ func Target2(a any, b any, c any) {}
 
 // b can be rune or byte.
 func Target3(a any, b any, c any) {}
+
+// b can be int or fmt.Stringer.
+func Target4(a any, b any, c any) {}
 
 type MyInt int
 
