@@ -23,7 +23,7 @@ func main() {
 
 ## How to use
 
-Build your `dwrap` binary by writing `main.go` like below.
+Build your `notany` binary by writing `main.go` like below.
 
 ```go
 package main
