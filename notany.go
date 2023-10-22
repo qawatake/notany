@@ -1,8 +1,10 @@
 package notany
 
 import (
+	"fmt"
 	"go/ast"
 	"go/types"
+	"strings"
 
 	"github.com/gostaticanalysis/analysisutil"
 	"golang.org/x/tools/go/analysis"
@@ -87,12 +89,28 @@ func toAnalysisTargets(pass *analysis.Pass, targets []Target) []*analysisTarget 
 			allowed[analysisutil.TypeOf(pass, a.PkgPath, a.TypeName)] = struct{}{}
 		}
 		ret = append(ret, &analysisTarget{
-			Func:    analysisutil.ObjectOf(pass, t.PkgPath, t.FuncName),
+			Func:    objectOf(pass, t),
 			ArgPos:  t.ArgPos,
 			Allowed: allowed,
 		})
 	}
 	return ret
+}
+
+func objectOf(pass *analysis.Pass, t Target) types.Object {
+	// function
+	if !strings.Contains(t.FuncName, ".") {
+		return analysisutil.ObjectOf(pass, t.PkgPath, t.FuncName)
+	}
+	tt := strings.Split(t.FuncName, ".")
+	if len(tt) != 2 {
+		panic(fmt.Sprintf("invalid FuncName %s", t.FuncName))
+	}
+	// method
+	recv := tt[0]
+	method := tt[1]
+	recvType := analysisutil.TypeOf(pass, t.PkgPath, recv)
+	return analysisutil.MethodOf(recvType, method)
 }
 
 // toBeReported reports whether the call expression n should be reported.
