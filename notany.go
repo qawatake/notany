@@ -6,7 +6,7 @@ import (
 	"go/types"
 	"strings"
 
-	"github.com/gostaticanalysis/analysisutil"
+	"github.com/qawatake/notany/internal/analysisutil"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
@@ -94,7 +94,9 @@ func toAnalysisTargets(pass *analysis.Pass, targets []Target) []*analysisTarget 
 				}
 				continue
 			}
-			allowed[analysisutil.TypeOf(pass, a.PkgPath, a.TypeName)] = struct{}{}
+			if t := analysisutil.TypeOf(pass, a.PkgPath, a.TypeName); t != nil {
+				allowed[t] = struct{}{}
+			}
 		}
 		ret = append(ret, &analysisTarget{
 			Func:    objectOf(pass, t),
