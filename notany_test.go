@@ -133,9 +133,13 @@ func TestAnalyzer(t *testing.T) {
 					PkgPath:  "fmt",
 					TypeName: "Stringer",
 				},
+				{
+					PkgPath:  "github.com/qawatake/a/c",
+					TypeName: "Hoger",
+				},
 			},
 		},
-	), "github.com/qawatake/a")
+	), "github.com/qawatake/a/...")
 }
 
 func TestAnalyzer_invalid_cfg(t *testing.T) {

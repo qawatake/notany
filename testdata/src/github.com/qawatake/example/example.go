@@ -4,3 +4,4 @@ package example
 func Any(v any) {}
 
 type MyInt int
+

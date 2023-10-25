@@ -10,6 +10,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
+	"golang.org/x/tools/go/packages"
 )
 
 const name = "notany"
@@ -94,10 +95,28 @@ func toAnalysisTargets(pass *analysis.Pass, targets []Target) []*analysisTarget 
 				}
 				continue
 			}
+			fmt.Println("🖥", a.PkgPath, a.TypeName)
 			if t := analysisutil.TypeOf(pass, a.PkgPath, a.TypeName); t != nil {
 				allowed[t] = struct{}{}
+				continue
+			}
+			pkgs, err := packages.Load(&packages.Config{
+				Mode: packages.NeedCompiledGoFiles | packages.NeedTypes | packages.NeedTypesInfo | packages.NeedModule | packages.NeedName,
+			}, a.PkgPath)
+			if err != nil {
+				panic(err)
+			}
+			fmt.Println("🥶", pkgs)
+			for _, pkg := range pkgs {
+				// fmt.Println(a.PkgPath, a.TypeName, pkg)
+				obj := pkg.Types.Scope().Lookup(a.TypeName)
+				// fmt.Println(pkg.Types.Scope().Lookup("Hoger"), a.TypeName, obj)
+				if obj != nil {
+					allowed[obj.Type()] = struct{}{}
+				}
 			}
 		}
+		fmt.Println("😗", allowed)
 		ret = append(ret, &analysisTarget{
 			Func:    objectOf(pass, t),
 			ArgPos:  t.ArgPos,
