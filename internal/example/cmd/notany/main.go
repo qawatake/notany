@@ -27,7 +27,7 @@ func main() {
 					},
 					{
 						PkgPath:  "github.com/qawatake/notany/internal/example/hoge",
-						TypeName: "Hoge",
+						TypeName: "Hoger",
 					},
 				},
 			},

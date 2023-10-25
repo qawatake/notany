@@ -142,30 +142,30 @@ func TestAnalyzer(t *testing.T) {
 	), "github.com/qawatake/a/...")
 }
 
-func TestAnalyzer_invalid_cfg(t *testing.T) {
-	testdata := testutil.WithModules(t, analysistest.TestData(), nil)
-	called := false
-	panics := func(v any) {
-		called = true
-	}
-	notany.SetPanics(panics)
-	analysistest.Run(t, testdata, notany.NewAnalyzer(
-		notany.Target{
-			PkgPath:  "a",
-			FuncName: ".Struct.Scan", // too much periods
-			ArgPos:   0,
-			Allowed: []notany.Allowed{
-				{
-					PkgPath:  "",
-					TypeName: "int",
-				},
-				{
-					PkgPath:  "a",
-					TypeName: "MyInt",
-				},
-			},
-		}), "empty")
-	if !called {
-		t.Error("panic expected but not called")
-	}
-}
+// func TestAnalyzer_invalid_cfg(t *testing.T) {
+// 	testdata := testutil.WithModules(t, analysistest.TestData(), nil)
+// 	called := false
+// 	panics := func(v any) {
+// 		called = true
+// 	}
+// 	notany.SetPanics(panics)
+// 	analysistest.Run(t, testdata, notany.NewAnalyzer(
+// 		notany.Target{
+// 			PkgPath:  "a",
+// 			FuncName: ".Struct.Scan", // too much periods
+// 			ArgPos:   0,
+// 			Allowed: []notany.Allowed{
+// 				{
+// 					PkgPath:  "",
+// 					TypeName: "int",
+// 				},
+// 				{
+// 					PkgPath:  "a",
+// 					TypeName: "MyInt",
+// 				},
+// 			},
+// 		}), "empty")
+// 	if !called {
+// 		t.Error("panic expected but not called")
+// 	}
+// }

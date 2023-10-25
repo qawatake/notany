@@ -5,6 +5,7 @@ import (
 	"go/ast"
 	"go/types"
 	"strings"
+	"sync"
 
 	"github.com/qawatake/notany/internal/analysisutil"
 	"golang.org/x/tools/go/analysis"
@@ -56,14 +57,23 @@ type Allowed struct {
 	TypeName string
 }
 
+var m sync.RWMutex
+var once sync.Once
+
 func (r *runner) run(pass *analysis.Pass) (any, error) {
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
-	targets := toAnalysisTargets(pass, r.targets)
+	// targets := parseTargets(pass, r.targets)
 
+	m.Lock()
+	once.Do(func() {
+		allow = newAllower(r.targets)
+	})
+	m.Unlock()
+	// fmt.Println(allow.unparsed)
 	inspect.Preorder(nil, func(n ast.Node) {
 		switch n := n.(type) {
 		case *ast.CallExpr:
-			if result := toBeReported(pass, targets, n); result != nil {
+			if result := allow.Check(pass, n); result != nil {
 				pass.Reportf(n.Pos(), "%s is not allowed for the %dth arg of %s", result.ArgType, result.ArgPos+1, result.Func)
 			}
 		}
@@ -72,71 +82,190 @@ func (r *runner) run(pass *analysis.Pass) (any, error) {
 	return nil, nil
 }
 
-func toAnalysisTargets(pass *analysis.Pass, targets []Target) []*analysisTarget {
-	var ret []*analysisTarget
+type allower struct {
+	sync.RWMutex
+	pkgs     map[string]*packages.Package
+	parsed   []*analysisTarget
+	unparsed map[*Target]struct{}
+}
+
+var allow *allower
+
+func newAllower(targets []Target) *allower {
+	a := &allower{
+		pkgs: make(map[string]*packages.Package),
+	}
+	unparsed := make(map[*Target]struct{})
 	for _, t := range targets {
-		allowed := make(map[types.Type]struct{})
-		for _, a := range t.Allowed {
-			if a.PkgPath == "" {
-				typ := types.Universe.Lookup(a.TypeName).Type()
-				allowed[typ] = struct{}{}
-				// builtin alias
-				switch typ {
-				case types.Typ[types.Uint8]:
-					// byteType != types.Typ[types.Byte]
-					allowed[byteType] = struct{}{}
-				case types.Typ[types.Int32]:
-					// runeType != types.Typ[types.Rune]
-					allowed[runeType] = struct{}{}
-				case byteType:
-					allowed[types.Typ[types.Uint8]] = struct{}{}
-				case runeType:
-					allowed[types.Typ[types.Int32]] = struct{}{}
-				}
-				continue
-			}
-			fmt.Println("🖥", a.PkgPath, a.TypeName)
-			if t := analysisutil.TypeOf(pass, a.PkgPath, a.TypeName); t != nil {
-				allowed[t] = struct{}{}
-				continue
-			}
-			pkgs, err := packages.Load(&packages.Config{
-				Mode: packages.NeedCompiledGoFiles | packages.NeedTypes | packages.NeedTypesInfo | packages.NeedModule | packages.NeedName,
-			}, a.PkgPath)
-			if err != nil {
-				panic(err)
-			}
-			fmt.Println("🥶", pkgs)
-			for _, pkg := range pkgs {
-				// fmt.Println(a.PkgPath, a.TypeName, pkg)
-				obj := pkg.Types.Scope().Lookup(a.TypeName)
-				// fmt.Println(pkg.Types.Scope().Lookup("Hoger"), a.TypeName, obj)
-				if obj != nil {
-					allowed[obj.Type()] = struct{}{}
-				}
+		t := t
+		unparsed[&t] = struct{}{}
+	}
+	a.unparsed = unparsed
+	return a
+}
+
+func (a *allower) Check(pass *analysis.Pass, n *ast.CallExpr) *notAllowed {
+	switch f := n.Fun.(type) {
+	case *ast.Ident:
+		return a.check(pass, n, f)
+	case *ast.SelectorExpr:
+		return a.check(pass, n, f.Sel)
+	}
+	return nil
+}
+
+func (a *allower) check(pass *analysis.Pass, n *ast.CallExpr, f *ast.Ident) *notAllowed {
+	obj, ok := pass.TypesInfo.ObjectOf(f).(*types.Func)
+	if !ok {
+		return nil
+	}
+	sig, _ := obj.Type().(*types.Signature)
+	m.RLock()
+	for _, t := range a.parsed {
+		if x := t.Allowx(pass, obj, sig, n); x != nil {
+			m.RUnlock()
+			return x
+		}
+	}
+	m.RUnlock()
+
+	parsed := make(map[*Target]struct{})
+	m.Lock()
+	defer m.Unlock()
+	defer func() {
+		for t := range parsed {
+			delete(a.unparsed, t)
+		}
+	}()
+	for t := range a.unparsed {
+		x := a.parseTarget(pass, t)
+		if x != nil {
+			parsed[t] = struct{}{}
+			a.parsed = append(a.parsed, x)
+			if x := x.Allowx(pass, obj, sig, n); x != nil {
+				return x
 			}
 		}
-		fmt.Println("😗", allowed)
-		ret = append(ret, &analysisTarget{
-			Func:    objectOf(pass, t),
+	}
+	return nil
+}
+
+func (a *allower) parseTarget(pass *analysis.Pass, t *Target) *analysisTarget {
+	allowed := make([]types.Type, 0, len(t.Allowed))
+	for _, al := range t.Allowed {
+		if al.PkgPath == "" {
+			typ := types.Universe.Lookup(al.TypeName).Type()
+			if typ == nil {
+				continue
+			}
+			allowed = append(allowed, typ)
+			// builtin alias
+			switch typ {
+			case types.Typ[types.Uint8]:
+				// byteType != types.Typ[types.Byte]
+				allowed = append(allowed, byteType)
+			case types.Typ[types.Int32]:
+				// runeType != types.Typ[types.Rune]
+				allowed = append(allowed, runeType)
+			case byteType:
+				allowed = append(allowed, types.Typ[types.Uint8])
+			case runeType:
+				allowed = append(allowed, types.Typ[types.Int32])
+			}
+			continue
+		}
+		if t := analysisutil.TypeOf(pass, al.PkgPath, al.TypeName); t != nil {
+			allowed = append(allowed, t)
+			continue
+		}
+		if pkg, ok := a.pkgs[al.PkgPath]; ok {
+			pass := &analysis.Pass{
+				TypesInfo: pkg.TypesInfo,
+				Pkg:       pkg.Types,
+			}
+			if t := analysisutil.TypeOf(pass, al.PkgPath, al.TypeName); t != nil {
+				allowed = append(allowed, t)
+			}
+			continue
+		}
+		pkgs, err := packages.Load(&packages.Config{
+			Mode: packages.NeedTypes | packages.NeedTypesInfo,
+		}, al.PkgPath)
+		if err != nil {
+			panic(err)
+		}
+		for _, pkg := range pkgs {
+			if pkg.Types == nil || pkg.Types.Path() != al.PkgPath {
+				continue
+			}
+			a.pkgs[pkg.Types.Path()] = pkg
+			pass := &analysis.Pass{
+				TypesInfo: pkg.TypesInfo,
+				Pkg:       pkg.Types,
+			}
+			if t := analysisutil.TypeOf(pass, al.PkgPath, al.TypeName); t != nil {
+				allowed = append(allowed, t)
+				continue
+			}
+		}
+	}
+	f := objectOf(pass, t)
+	if f != nil {
+		return &analysisTarget{
+			Func:    f,
 			ArgPos:  t.ArgPos,
 			Allowed: allowed,
-		})
+		}
 	}
-	return ret
+	return nil
 }
 
 type analysisTarget struct {
 	Func    types.Object
 	ArgPos  int
-	Allowed map[types.Type]struct{}
+	Allowed []types.Type
+}
+
+func (t *analysisTarget) Allowx(pass *analysis.Pass, obj *types.Func, sig *types.Signature, n *ast.CallExpr) *notAllowed {
+	if t.Func != obj {
+		return nil
+	}
+	switch {
+	case !sig.Variadic():
+		arg := n.Args[t.ArgPos]
+		argType := pass.TypesInfo.Types[arg].Type
+		if !t.Allow(argType) {
+			return &notAllowed{
+				ArgExpr: arg,
+				ArgType: argType,
+				ArgPos:  t.ArgPos,
+				Func:    obj,
+			}
+		}
+		return nil
+	case sig.Variadic():
+		for p := t.ArgPos; p < len(n.Args); p++ {
+			arg := n.Args[p]
+			argType := pass.TypesInfo.Types[arg].Type
+			if !t.Allow(argType) {
+				return &notAllowed{
+					ArgExpr: arg,
+					ArgType: argType,
+					ArgPos:  p,
+					Func:    obj,
+				}
+			}
+		}
+		return nil
+	}
+	return nil
 }
 
 func (a *analysisTarget) Allow(t types.Type) bool {
-	if _, ok := a.Allowed[t]; ok {
-		return true
-	}
-	for at := range a.Allowed {
+	for _, at := range a.Allowed {
+		if types.Identical(t, at) {
+			return true
+		}
 		if i, ok := at.Underlying().(*types.Interface); ok {
 			if types.Implements(t, i) {
 				return true
@@ -149,7 +278,7 @@ func (a *analysisTarget) Allow(t types.Type) bool {
 var byteType = types.Universe.Lookup("byte").Type()
 var runeType = types.Universe.Lookup("rune").Type()
 
-func objectOf(pass *analysis.Pass, t Target) types.Object {
+func objectOf(pass *analysis.Pass, t *Target) types.Object {
 	// function
 	if !strings.Contains(t.FuncName, ".") {
 		return analysisutil.ObjectOf(pass, t.PkgPath, t.FuncName)

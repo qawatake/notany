@@ -51,9 +51,6 @@ func main() {
 			switch n := n.(type) {
 			case *ast.CallExpr:
 				if result := toBeReported(pass, targets, n); result != nil {
-					// position := pass.Fset.Position(n.Pos())
-					// fmt.Printf("👀%s:%d:%d %s is not allowed for the %dth arg of %s\n", pass.Fset.File(n.Pos()).Name(), position.Line, position.Column, result.ArgType, result.ArgPos+1, result.Func)
-					// pass.Reportf(n.Pos(), "%s is not allowed for the %dth arg of %s", result.ArgType, result.ArgPos+1, result.Func)
 					reportf(pass.Fset, n.Pos(), "%s is not allowed for the %dth arg of %s", result.ArgType, result.ArgPos+1, result.Func)
 				}
 			}
