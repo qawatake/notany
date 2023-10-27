@@ -1,8 +1,6 @@
 package notany
 
 import (
-	"fmt"
-
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/packages"
@@ -16,8 +14,7 @@ func NewAnalyzer(dir string, targets ...Target) *analysis.Analyzer {
 	apkgs := loadAdditionalPackages(dir, targets, nil)
 	m := make(map[string]*packages.Package)
 	for _, p := range apkgs {
-		fmt.Println(p.PkgPath)
-		m[p.PkgPath] = p
+		m[p.Types.Path()] = p
 	}
 	parsed := parseTargets(m, targets)
 	r := &runner{

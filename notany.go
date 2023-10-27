@@ -217,14 +217,11 @@ type analysisTarget struct {
 }
 
 func (a *analysisTarget) Allow(t types.Type) bool {
-	fmt.Println(t)
 	for at := range a.Allowed {
-		fmt.Println(at)
 		if types.Identical(t, at) {
 			return true
 		}
 		if i, ok := at.Underlying().(*types.Interface); ok {
-			fmt.Println(i)
 			if types.Implements(t, i) {
 				return true
 			}
