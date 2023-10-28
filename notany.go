@@ -168,7 +168,16 @@ var runeType = types.Universe.Lookup("rune").Type()
 func objectOf(pass *analysis.Pass, t Target) (types.Object, error) {
 	// function
 	if !strings.Contains(t.FuncName, ".") {
-		return analysisutil.ObjectOf(pass, t.PkgPath, t.FuncName), nil
+		obj := analysisutil.ObjectOf(pass, t.PkgPath, t.FuncName)
+		if obj == nil {
+			// not found is ok because func need not to be called.
+			return nil, nil
+		}
+		ft, ok := obj.(*types.Func)
+		if !ok {
+			return nil, newErrNotFunc(t.PkgPath, t.FuncName)
+		}
+		return ft, nil
 	}
 	tt := strings.Split(t.FuncName, ".")
 	if len(tt) != 2 {
@@ -178,7 +187,15 @@ func objectOf(pass *analysis.Pass, t Target) (types.Object, error) {
 	recv := tt[0]
 	method := tt[1]
 	recvType := analysisutil.TypeOf(pass, t.PkgPath, recv)
-	return analysisutil.MethodOf(recvType, method), nil
+	if recvType == nil {
+		// not found is ok because method need not to be called.
+		return nil, nil
+	}
+	m := analysisutil.MethodOf(recvType, method)
+	if m == nil {
+		return nil, newErrNotMethod(t.PkgPath, recv, method)
+	}
+	return m, nil
 }
 
 // toBeReported reports whether the call expression n should be reported.
@@ -297,6 +314,13 @@ type errNotFunc struct {
 	FuncName string
 }
 
+func newErrNotFunc(pkgPath, funcName string) errNotFunc {
+	return errNotFunc{
+		PkgPath:  pkgPath,
+		FuncName: funcName,
+	}
+}
+
 func (e errNotFunc) Error() string {
 	return fmt.Sprintf("%s.%s is not a function.", e.PkgPath, e.FuncName)
 }
@@ -305,6 +329,14 @@ type errNotMethod struct {
 	PkgPath    string
 	Recv       string
 	MethodName string
+}
+
+func newErrNotMethod(pkgPath, recv, methodName string) errNotMethod {
+	return errNotMethod{
+		PkgPath:    pkgPath,
+		Recv:       recv,
+		MethodName: methodName,
+	}
 }
 
 func (e errNotMethod) Error() string {

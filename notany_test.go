@@ -245,7 +245,7 @@ func TestAnalyzer_not_found_allowed(t *testing.T) {
 }
 
 func TestAnalyzer_not_func(t *testing.T) {
-	t.Parallel()
+	// t.Parallel()
 	testdata := testutil.WithModules(t, analysistest.TestData(), nil)
 	treporter := NewAnalysisErrorReporter(1)
 	analysistest.Run(treporter, testdata, notany.NewAnalyzer(
@@ -279,7 +279,7 @@ func TestAnalyzer_not_func(t *testing.T) {
 }
 
 func TestAnalyzer_not_method(t *testing.T) {
-	t.Parallel()
+	// t.Parallel()
 	testdata := testutil.WithModules(t, analysistest.TestData(), nil)
 	treporter := NewAnalysisErrorReporter(1)
 	analysistest.Run(treporter, testdata, notany.NewAnalyzer(
@@ -300,9 +300,10 @@ func TestAnalyzer_not_method(t *testing.T) {
 			},
 		}), "notmethod")
 	errs := treporter.Errors()
-	want := notany.ErrNotFunc{
-		PkgPath:  "notmethod",
-		FuncName: "Int",
+	want := notany.ErrNotMethod{
+		PkgPath:    "notmethod",
+		Recv:       "S",
+		MethodName: "Field",
 	}
 	if len(errs) != 1 {
 		t.Fatalf("err expected but not found: %v", want)
