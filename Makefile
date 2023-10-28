@@ -21,4 +21,4 @@ build:
 	go build -o $(BINDIR)/notany ./internal/example/cmd/notany
 
 test.vet:
-	go vet -vettool=$(BINDIR)/notany ./internal/...
+	go vet -vettool=$(BINDIR)/notany ./internal/example

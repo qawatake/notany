@@ -138,6 +138,23 @@ func TestAnalyzer(t *testing.T) {
 	), "github.com/qawatake/a")
 }
 
+func TestAnalyzer_out_of_range(t *testing.T) {
+	testdata := testutil.WithModules(t, analysistest.TestData(), nil)
+	analysistest.Run(t, testdata, notany.NewAnalyzer(
+		notany.Target{
+			PkgPath:  "oor",
+			FuncName: "OutOfRange",
+			// ↓ out of range
+			ArgPos: 1,
+			Allowed: []notany.Allowed{
+				{
+					PkgPath:  "",
+					TypeName: "int",
+				},
+			},
+		}), "oor")
+}
+
 func TestAnalyzer_invalid_cfg(t *testing.T) {
 	testdata := testutil.WithModules(t, analysistest.TestData(), nil)
 	called := false

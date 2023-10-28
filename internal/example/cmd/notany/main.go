@@ -9,9 +9,9 @@ func main() {
 	unitchecker.Main(
 		notany.NewAnalyzer(
 			notany.Target{
-				PkgPath:  "github.com/qawatake/notany/example",
+				PkgPath:  "github.com/qawatake/notany/internal/example",
 				FuncName: "FuncWithAnyTypeArg",
-				ArgPos:   1,
+				ArgPos:   0,
 				Allowed: []notany.Allowed{
 					{
 						PkgPath:  "",
@@ -22,7 +22,7 @@ func main() {
 						TypeName: "Stringer",
 					},
 					{
-						PkgPath:  "github.com/qawatake/notany/example",
+						PkgPath:  "github.com/qawatake/notany/internal/example",
 						TypeName: "AllowedType",
 					},
 				},

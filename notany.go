@@ -57,7 +57,10 @@ type Allowed struct {
 
 func (r *runner) run(pass *analysis.Pass) (any, error) {
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
-	targets := toAnalysisTargets(pass, r.targets)
+	targets, err := toAnalysisTargets(pass, r.targets)
+	if err != nil {
+		return nil, err
+	}
 
 	inspect.Preorder(nil, func(n ast.Node) {
 		switch n := n.(type) {
@@ -71,12 +74,16 @@ func (r *runner) run(pass *analysis.Pass) (any, error) {
 	return nil, nil
 }
 
-func toAnalysisTargets(pass *analysis.Pass, targets []Target) []*analysisTarget {
-	var ret []*analysisTarget
+func toAnalysisTargets(pass *analysis.Pass, targets []Target) ([]*analysisTarget, error) {
+	ret := make([]*analysisTarget, 0, len(targets))
 	for _, t := range targets {
 		t := t
-		ft := objectOf(pass, t)
-		if ft == (*types.Func)(nil) {
+		obj := objectOf(pass, t)
+		if obj == (*types.Func)(nil) || obj == nil {
+			continue
+		}
+		ft, ok := obj.(*types.Func)
+		if !ok {
 			continue
 		}
 		allowed := make(map[types.Type]struct{})
@@ -106,19 +113,37 @@ func toAnalysisTargets(pass *analysis.Pass, targets []Target) []*analysisTarget 
 				allowed[t.Type()] = struct{}{}
 			}
 		}
-		ret = append(ret, &analysisTarget{
-			Func:    objectOf(pass, t),
+		a := &analysisTarget{
+			Func:    ft,
 			ArgPos:  t.ArgPos,
 			Allowed: allowed,
-		})
+		}
+		if err := a.validate(); err != nil {
+			return nil, err
+		}
+		ret = append(ret, a)
 	}
-	return ret
+	return ret, nil
 }
 
 type analysisTarget struct {
-	Func    types.Object
+	Func    *types.Func
 	ArgPos  int
 	Allowed map[types.Type]struct{}
+}
+
+func (a *analysisTarget) validate() error {
+	if a.Func == nil || a.Func == (*types.Func)(nil) {
+		return nil
+	}
+	sig, ok := a.Func.Type().(*types.Signature)
+	if !ok {
+		return nil
+	}
+	if sig.Params().Len() <= a.ArgPos {
+		return fmt.Errorf("ArgPos is out of range")
+	}
+	return nil
 }
 
 func (a *analysisTarget) Allow(t types.Type) bool {
