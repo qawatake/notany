@@ -35,14 +35,14 @@ type runner struct {
 
 // Target represents a pair of a function and a list of arguments with allowed types.
 type Target struct {
-	// Package path of the target function
+	// Package path of the target function (or method).
 	PkgPath string
-	// Name of the target function
+	// Name of the target function (or method).
 	FuncName string
-	// Position of argument any
-	// ArgPos is 0-indexed
+	// Position of argument of type any.
+	// ArgPos is 0-indexed.
 	ArgPos int
-	// List of allowed types for the argument
+	// List of allowed types for the argument.
 	Allowed []Allowed
 }
 
