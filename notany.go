@@ -33,7 +33,7 @@ type runner struct {
 	targets []Target
 }
 
-// Target represents a pair of a function and an argument with allowed types.
+// Target represents a pair of a function and a list of arguments with allowed types.
 type Target struct {
 	// Package path of the target function
 	PkgPath string
@@ -46,7 +46,7 @@ type Target struct {
 	Allowed []Allowed
 }
 
-// Allowed is a type that is allowed for the argument.
+// Allowed represents a type that is allowed for the argument.
 type Allowed struct {
 	// The path of the package that defines the type.
 	// If the type is builtin, let it be an empty string.
