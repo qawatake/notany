@@ -209,6 +209,41 @@ func TestAnalyzer_invalid_func_name(t *testing.T) {
 	}
 }
 
+func TestAnalyzer_not_found_allowed(t *testing.T) {
+	t.Parallel()
+	testdata := testutil.WithModules(t, analysistest.TestData(), nil)
+	treporter := NewAnalysisErrorReporter(1)
+	analysistest.Run(treporter, testdata, notany.NewAnalyzer(
+		notany.Target{
+			PkgPath:  "notfound",
+			FuncName: "Target",
+			ArgPos:   0,
+			Allowed: []notany.Allowed{
+				{
+					PkgPath:  "",
+					TypeName: "int",
+				},
+				// not found
+				{
+					PkgPath:  "fmt",
+					TypeName: "Stringer",
+				},
+			},
+		}), "notfound")
+	errs := treporter.Errors()
+	want := notany.ErrIdentNotFound{
+		FromPkgPath: "notfound",
+		PkgPath:     "fmt",
+		Name:        "Stringer",
+	}
+	if len(errs) != 1 {
+		t.Errorf("err expected but not found: %v", want)
+	}
+	if !errors.Is(errs[0], want) {
+		t.Errorf("got %v, want %v", errs[0], want)
+	}
+}
+
 var _ analysistest.Testing = (*analysisErrorReporter)(nil)
 
 type analysisErrorReporter struct {

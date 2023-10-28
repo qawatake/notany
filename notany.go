@@ -111,11 +111,13 @@ func toAnalysisTargets(pass *analysis.Pass, targets []Target) ([]*analysisTarget
 			}
 			if t := analysisutil.TypeOf(pass, a.PkgPath, a.TypeName); t != nil {
 				allowed[t] = struct{}{}
+				continue
 			}
 			if t := analysisutil.ObjectOfBFS(pass.Pkg, a.PkgPath, a.TypeName); t != nil {
 				allowed[t.Type()] = struct{}{}
+				continue
 			}
-			return nil, fmt.Errorf("%v %v %v\n", pass.Pkg.Path(), a.PkgPath, a.TypeName)
+			return nil, newErrIdentNotFound(pass.Pkg.Path(), a.PkgPath, a.TypeName)
 		}
 		a := &analysisTarget{
 			Func:    ft,
@@ -274,4 +276,22 @@ func newErrInvalidFuncName(funcName string) errInvalidFuncName {
 
 func (e errInvalidFuncName) Error() string {
 	return fmt.Sprintf("invalid FuncName %s", e.FuncName)
+}
+
+type errIdentNotFound struct {
+	FromPkgPath string
+	PkgPath     string
+	Name        string
+}
+
+func newErrIdentNotFound(fromPkgPath, pkgPath, name string) errIdentNotFound {
+	return errIdentNotFound{
+		FromPkgPath: fromPkgPath,
+		PkgPath:     pkgPath,
+		Name:        name,
+	}
+}
+
+func (e errIdentNotFound) Error() string {
+	return fmt.Sprintf("%[1]s.%[2]s is not found from %[3]s or its imports. Import %[1]s to %[3]s", e.PkgPath, e.Name, e.FromPkgPath)
 }
