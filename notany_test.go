@@ -313,6 +313,23 @@ func TestAnalyzer_not_method(t *testing.T) {
 	}
 }
 
+func TestAnalyzer_target_unused(t *testing.T) {
+	t.Parallel()
+	testdata := testutil.WithModules(t, analysistest.TestData(), nil)
+	treporter := NewAnalysisErrorReporter(1)
+	analysistest.Run(treporter, testdata, notany.NewAnalyzer(
+		notany.Target{
+			PkgPath:  "fmt",
+			FuncName: "Println",
+		},
+		notany.Target{
+			PkgPath:  "time",
+			FuncName: "Time.String",
+		},
+	),
+		"unused")
+}
+
 var _ analysistest.Testing = (*analysisErrorReporter)(nil)
 
 type analysisErrorReporter struct {

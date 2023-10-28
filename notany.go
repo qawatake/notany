@@ -78,16 +78,9 @@ func toAnalysisTargets(pass *analysis.Pass, targets []Target) ([]*analysisTarget
 	ret := make([]*analysisTarget, 0, len(targets))
 	for _, t := range targets {
 		t := t
-		obj, err := objectOf(pass, t)
+		ft, err := funcObjectOf(pass, t)
 		if err != nil {
 			return nil, err
-		}
-		if obj == (*types.Func)(nil) || obj == nil {
-			continue
-		}
-		ft, ok := obj.(*types.Func)
-		if !ok {
-			continue
 		}
 		allowed := make(map[types.Type]struct{})
 		for _, a := range t.Allowed {
@@ -165,7 +158,7 @@ func (a *analysisTarget) Allow(t types.Type) bool {
 var byteType = types.Universe.Lookup("byte").Type()
 var runeType = types.Universe.Lookup("rune").Type()
 
-func objectOf(pass *analysis.Pass, t Target) (types.Object, error) {
+func funcObjectOf(pass *analysis.Pass, t Target) (*types.Func, error) {
 	// function
 	if !strings.Contains(t.FuncName, ".") {
 		obj := analysisutil.ObjectOf(pass, t.PkgPath, t.FuncName)
