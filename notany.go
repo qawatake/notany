@@ -299,7 +299,7 @@ func newErrIdentNotFound(fromPkgPath, pkgPath, name string) errIdentNotFound {
 }
 
 func (e errIdentNotFound) Error() string {
-	return fmt.Sprintf("%[1]s.%[2]s is not found from %[3]s or its imports. Import %[1]s to %[3]s", e.PkgPath, e.Name, e.FromPkgPath)
+	return fmt.Sprintf("%[1]s.%[2]s is not found in %[3]s or its imports. Import %[1]s to %[3]s", e.PkgPath, e.Name, e.FromPkgPath)
 }
 
 type errNotFunc struct {
