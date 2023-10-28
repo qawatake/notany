@@ -3,6 +3,8 @@ package analysisutil
 import (
 	"go/types"
 
+	"container/list"
+
 	"github.com/gostaticanalysis/analysisutil"
 	"golang.org/x/tools/go/analysis"
 )
@@ -18,6 +20,51 @@ func ObjectOf(pass *analysis.Pass, pkg, name string) types.Object {
 		return nil
 	}
 	return pass.Pkg.Scope().Lookup(name)
+}
+
+func ObjectOfBFS(pkg *types.Package, path, name string) types.Object {
+	lookupper := newLookupperBFS(pkg)
+	return lookupper.Lookup(path, name)
+}
+
+type lookupperBFS struct {
+	seen  map[*types.Package]struct{}
+	queue *list.List
+}
+
+func newLookupperBFS(pkg *types.Package) *lookupperBFS {
+	lookupper := &lookupperBFS{
+		seen:  make(map[*types.Package]struct{}),
+		queue: list.New(),
+	}
+	lookupper.queue.PushBack(pkg)
+	return lookupper
+}
+
+func (lookup *lookupperBFS) Lookup(path, name string) types.Object {
+	if lookup.queue.Len() == 0 {
+		return nil
+	}
+	front := lookup.queue.Front()
+	if front == nil {
+		return nil
+	}
+	lookup.queue.Remove(front)
+	pkg, ok := front.Value.(*types.Package)
+	if !ok {
+		return nil
+	}
+	if analysisutil.RemoveVendor(pkg.Path()) == analysisutil.RemoveVendor(path) {
+		return pkg.Scope().Lookup(name)
+	}
+	for _, imp := range pkg.Imports() {
+		if _, ok := lookup.seen[imp]; ok {
+			continue
+		}
+		lookup.seen[imp] = struct{}{}
+		lookup.queue.PushBack(imp)
+	}
+	return lookup.Lookup(path, name)
 }
 
 // copied and modified from https://github.com/gostaticanalysis/analysisutil/blob/ccfdecf515f47e636ba164ce0e5f26810eaf8747/types.go#L31

@@ -74,6 +74,11 @@ func (r *runner) run(pass *analysis.Pass) (any, error) {
 func toAnalysisTargets(pass *analysis.Pass, targets []Target) []*analysisTarget {
 	var ret []*analysisTarget
 	for _, t := range targets {
+		t := t
+		ft := objectOf(pass, t)
+		if ft == (*types.Func)(nil) {
+			continue
+		}
 		allowed := make(map[types.Type]struct{})
 		for _, a := range t.Allowed {
 			if a.PkgPath == "" {
@@ -96,6 +101,9 @@ func toAnalysisTargets(pass *analysis.Pass, targets []Target) []*analysisTarget 
 			}
 			if t := analysisutil.TypeOf(pass, a.PkgPath, a.TypeName); t != nil {
 				allowed[t] = struct{}{}
+			}
+			if t := analysisutil.ObjectOfBFS(pass.Pkg, a.PkgPath, a.TypeName); t != nil {
+				allowed[t.Type()] = struct{}{}
 			}
 		}
 		ret = append(ret, &analysisTarget{
