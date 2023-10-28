@@ -109,12 +109,8 @@ func toAnalysisTargets(pass *analysis.Pass, targets []Target) ([]*analysisTarget
 				}
 				continue
 			}
-			if t := analysisutil.TypeOf(pass, a.PkgPath, a.TypeName); t != nil {
+			if t := analysisutil.TypeOfBFS(pass.Pkg, a.PkgPath, a.TypeName); t != nil {
 				allowed[t] = struct{}{}
-				continue
-			}
-			if t := analysisutil.ObjectOfBFS(pass.Pkg, a.PkgPath, a.TypeName); t != nil {
-				allowed[t.Type()] = struct{}{}
 				continue
 			}
 			return nil, newErrIdentNotFound(pass.Pkg.Path(), a.PkgPath, a.TypeName)

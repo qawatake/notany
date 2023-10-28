@@ -22,6 +22,27 @@ func ObjectOf(pass *analysis.Pass, pkg, name string) types.Object {
 	return pass.Pkg.Scope().Lookup(name)
 }
 
+func TypeOfBFS(pkg *types.Package, path, name string) types.Type {
+	if name == "" {
+		return nil
+	}
+
+	if name[0] == '*' {
+		obj := TypeOfBFS(pkg, path, name[1:])
+		if obj == nil {
+			return nil
+		}
+		return types.NewPointer(obj)
+	}
+
+	obj := ObjectOfBFS(pkg, path, name)
+	if obj == nil {
+		return nil
+	}
+
+	return obj.Type()
+}
+
 func ObjectOfBFS(pkg *types.Package, path, name string) types.Object {
 	lookupper := newLookupperBFS(pkg)
 	return lookupper.Lookup(path, name)
