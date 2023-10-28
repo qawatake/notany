@@ -1,5 +1,11 @@
 package notany
 
-func SetPanics(f func(v any)) {
-	panics = f
-}
+type ErrArgPosOutOfRange = errArgPosOutOfRange
+
+type ErrInvalidFuncName = errInvalidFuncName
+
+type ErrIdentNotFound = errIdentNotFound
+
+type ErrNotFunc = errNotFunc
+
+type ErrNotMethod = errNotMethod

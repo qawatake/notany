@@ -66,10 +66,10 @@ type str = string
 // b can be any type.
 func Target2(a any, b any, c any) {}
 
-// b can be rune or byte.
+// b must be rune or byte.
 func Target3(a any, b any, c any) {}
 
-// b can be int or fmt.Stringer.
+// b must be int or fmt.Stringer.
 func Target4(a any, b any, c any) {}
 
 type MyInt int

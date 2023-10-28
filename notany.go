@@ -6,7 +6,7 @@ import (
 	"go/types"
 	"strings"
 
-	"github.com/gostaticanalysis/analysisutil"
+	"github.com/qawatake/notany/internal/analysisutil"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
@@ -57,7 +57,10 @@ type Allowed struct {
 
 func (r *runner) run(pass *analysis.Pass) (any, error) {
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
-	targets := toAnalysisTargets(pass, r.targets)
+	targets, err := toAnalysisTargets(pass, r.targets)
+	if err != nil {
+		return nil, err
+	}
 
 	inspect.Preorder(nil, func(n ast.Node) {
 		switch n := n.(type) {
@@ -71,9 +74,14 @@ func (r *runner) run(pass *analysis.Pass) (any, error) {
 	return nil, nil
 }
 
-func toAnalysisTargets(pass *analysis.Pass, targets []Target) []*analysisTarget {
-	var ret []*analysisTarget
+func toAnalysisTargets(pass *analysis.Pass, targets []Target) ([]*analysisTarget, error) {
+	ret := make([]*analysisTarget, 0, len(targets))
 	for _, t := range targets {
+		t := t
+		ft, err := funcObjectOf(pass, t)
+		if err != nil {
+			return nil, err
+		}
 		allowed := make(map[types.Type]struct{})
 		for _, a := range t.Allowed {
 			if a.PkgPath == "" {
@@ -94,21 +102,43 @@ func toAnalysisTargets(pass *analysis.Pass, targets []Target) []*analysisTarget 
 				}
 				continue
 			}
-			allowed[analysisutil.TypeOf(pass, a.PkgPath, a.TypeName)] = struct{}{}
+			if t := analysisutil.TypeOfBFS(pass.Pkg, a.PkgPath, a.TypeName); t != nil {
+				allowed[t] = struct{}{}
+				continue
+			}
+			return nil, newErrIdentNotFound(pass.Pkg.Path(), a.PkgPath, a.TypeName)
 		}
-		ret = append(ret, &analysisTarget{
-			Func:    objectOf(pass, t),
+		a := &analysisTarget{
+			Func:    ft,
 			ArgPos:  t.ArgPos,
 			Allowed: allowed,
-		})
+		}
+		if err := a.validate(); err != nil {
+			return nil, err
+		}
+		ret = append(ret, a)
 	}
-	return ret
+	return ret, nil
 }
 
 type analysisTarget struct {
-	Func    types.Object
+	Func    *types.Func
 	ArgPos  int
 	Allowed map[types.Type]struct{}
+}
+
+func (a *analysisTarget) validate() error {
+	if a.Func == nil || a.Func == (*types.Func)(nil) {
+		return nil
+	}
+	sig, ok := a.Func.Type().(*types.Signature)
+	if !ok {
+		return nil
+	}
+	if sig.Params().Len() <= a.ArgPos {
+		return newErrArgPosOutOfRange(a.Func.Pkg().Path(), a.Func.Name(), a.ArgPos)
+	}
+	return nil
 }
 
 func (a *analysisTarget) Allow(t types.Type) bool {
@@ -128,23 +158,38 @@ func (a *analysisTarget) Allow(t types.Type) bool {
 var byteType = types.Universe.Lookup("byte").Type()
 var runeType = types.Universe.Lookup("rune").Type()
 
-func objectOf(pass *analysis.Pass, t Target) types.Object {
+func funcObjectOf(pass *analysis.Pass, t Target) (*types.Func, error) {
 	// function
 	if !strings.Contains(t.FuncName, ".") {
-		return analysisutil.ObjectOf(pass, t.PkgPath, t.FuncName)
+		obj := analysisutil.ObjectOf(pass, t.PkgPath, t.FuncName)
+		if obj == nil {
+			// not found is ok because func need not to be called.
+			return nil, nil
+		}
+		ft, ok := obj.(*types.Func)
+		if !ok {
+			return nil, newErrNotFunc(t.PkgPath, t.FuncName)
+		}
+		return ft, nil
 	}
 	tt := strings.Split(t.FuncName, ".")
 	if len(tt) != 2 {
-		panics(fmt.Sprintf("invalid FuncName %s", t.FuncName))
+		return nil, newErrInvalidFuncName(t.FuncName)
 	}
 	// method
 	recv := tt[0]
 	method := tt[1]
 	recvType := analysisutil.TypeOf(pass, t.PkgPath, recv)
-	return analysisutil.MethodOf(recvType, method)
+	if recvType == nil {
+		// not found is ok because method need not to be called.
+		return nil, nil
+	}
+	m := analysisutil.MethodOf(recvType, method)
+	if m == nil {
+		return nil, newErrNotMethod(t.PkgPath, recv, method)
+	}
+	return m, nil
 }
-
-var panics = func(v any) { panic(v) }
 
 // toBeReported reports whether the call expression n should be reported.
 // If nill is returned, it means that n should not be reported.
@@ -205,4 +250,88 @@ type notAllowed struct {
 	ArgType types.Type
 	ArgPos  int
 	Func    *types.Func
+}
+
+type errArgPosOutOfRange struct {
+	PkgPath  string
+	FuncName string
+	ArgPos   int
+}
+
+func newErrArgPosOutOfRange(pkgPath, funcName string, argPos int) errArgPosOutOfRange {
+	return errArgPosOutOfRange{
+		PkgPath:  pkgPath,
+		FuncName: funcName,
+		ArgPos:   argPos,
+	}
+}
+
+func (e errArgPosOutOfRange) Error() string {
+	return fmt.Sprintf("ArgPos %d is out of range for %s.%s", e.ArgPos, e.PkgPath, e.FuncName)
+}
+
+type errInvalidFuncName struct {
+	FuncName string
+}
+
+func newErrInvalidFuncName(funcName string) errInvalidFuncName {
+	return errInvalidFuncName{
+		FuncName: funcName,
+	}
+}
+
+func (e errInvalidFuncName) Error() string {
+	return fmt.Sprintf("invalid FuncName %s", e.FuncName)
+}
+
+type errIdentNotFound struct {
+	FromPkgPath string
+	PkgPath     string
+	Name        string
+}
+
+func newErrIdentNotFound(fromPkgPath, pkgPath, name string) errIdentNotFound {
+	return errIdentNotFound{
+		FromPkgPath: fromPkgPath,
+		PkgPath:     pkgPath,
+		Name:        name,
+	}
+}
+
+func (e errIdentNotFound) Error() string {
+	return fmt.Sprintf("%[1]s.%[2]s is not found from %[3]s or its imports. Import %[1]s to %[3]s", e.PkgPath, e.Name, e.FromPkgPath)
+}
+
+type errNotFunc struct {
+	PkgPath  string
+	FuncName string
+}
+
+func newErrNotFunc(pkgPath, funcName string) errNotFunc {
+	return errNotFunc{
+		PkgPath:  pkgPath,
+		FuncName: funcName,
+	}
+}
+
+func (e errNotFunc) Error() string {
+	return fmt.Sprintf("%s.%s is not a function.", e.PkgPath, e.FuncName)
+}
+
+type errNotMethod struct {
+	PkgPath    string
+	Recv       string
+	MethodName string
+}
+
+func newErrNotMethod(pkgPath, recv, methodName string) errNotMethod {
+	return errNotMethod{
+		PkgPath:    pkgPath,
+		Recv:       recv,
+		MethodName: methodName,
+	}
+}
+
+func (e errNotMethod) Error() string {
+	return fmt.Sprintf("%s.%s.%s is not a method.", e.PkgPath, e.MethodName, e.Recv)
 }
