@@ -78,7 +78,10 @@ func toAnalysisTargets(pass *analysis.Pass, targets []Target) ([]*analysisTarget
 	ret := make([]*analysisTarget, 0, len(targets))
 	for _, t := range targets {
 		t := t
-		obj := objectOf(pass, t)
+		obj, err := objectOf(pass, t)
+		if err != nil {
+			return nil, err
+		}
 		if obj == (*types.Func)(nil) || obj == nil {
 			continue
 		}
@@ -112,6 +115,7 @@ func toAnalysisTargets(pass *analysis.Pass, targets []Target) ([]*analysisTarget
 			if t := analysisutil.ObjectOfBFS(pass.Pkg, a.PkgPath, a.TypeName); t != nil {
 				allowed[t.Type()] = struct{}{}
 			}
+			return nil, fmt.Errorf("%v %v %v\n", pass.Pkg.Path(), a.PkgPath, a.TypeName)
 		}
 		a := &analysisTarget{
 			Func:    ft,
@@ -141,7 +145,7 @@ func (a *analysisTarget) validate() error {
 		return nil
 	}
 	if sig.Params().Len() <= a.ArgPos {
-		return fmt.Errorf("ArgPos is out of range")
+		return newErrArgPosOutOfRange(a.Func.Pkg().Path(), a.Func.Name(), a.ArgPos)
 	}
 	return nil
 }
@@ -163,23 +167,21 @@ func (a *analysisTarget) Allow(t types.Type) bool {
 var byteType = types.Universe.Lookup("byte").Type()
 var runeType = types.Universe.Lookup("rune").Type()
 
-func objectOf(pass *analysis.Pass, t Target) types.Object {
+func objectOf(pass *analysis.Pass, t Target) (types.Object, error) {
 	// function
 	if !strings.Contains(t.FuncName, ".") {
-		return analysisutil.ObjectOf(pass, t.PkgPath, t.FuncName)
+		return analysisutil.ObjectOf(pass, t.PkgPath, t.FuncName), nil
 	}
 	tt := strings.Split(t.FuncName, ".")
 	if len(tt) != 2 {
-		panics(fmt.Sprintf("invalid FuncName %s", t.FuncName))
+		return nil, newErrInvalidFuncName(t.FuncName)
 	}
 	// method
 	recv := tt[0]
 	method := tt[1]
 	recvType := analysisutil.TypeOf(pass, t.PkgPath, recv)
-	return analysisutil.MethodOf(recvType, method)
+	return analysisutil.MethodOf(recvType, method), nil
 }
-
-var panics = func(v any) { panic(v) }
 
 // toBeReported reports whether the call expression n should be reported.
 // If nill is returned, it means that n should not be reported.
@@ -240,4 +242,36 @@ type notAllowed struct {
 	ArgType types.Type
 	ArgPos  int
 	Func    *types.Func
+}
+
+type errArgPosOutOfRange struct {
+	PkgPath  string
+	FuncName string
+	ArgPos   int
+}
+
+func newErrArgPosOutOfRange(pkgPath, funcName string, argPos int) errArgPosOutOfRange {
+	return errArgPosOutOfRange{
+		PkgPath:  pkgPath,
+		FuncName: funcName,
+		ArgPos:   argPos,
+	}
+}
+
+func (e errArgPosOutOfRange) Error() string {
+	return fmt.Sprintf("ArgPos %d is out of range for %s.%s", e.ArgPos, e.PkgPath, e.FuncName)
+}
+
+type errInvalidFuncName struct {
+	FuncName string
+}
+
+func newErrInvalidFuncName(funcName string) errInvalidFuncName {
+	return errInvalidFuncName{
+		FuncName: funcName,
+	}
+}
+
+func (e errInvalidFuncName) Error() string {
+	return fmt.Sprintf("invalid FuncName %s", e.FuncName)
 }

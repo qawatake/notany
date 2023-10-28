@@ -1,6 +1,9 @@
 package notany_test
 
 import (
+	"errors"
+	"fmt"
+	"sync"
 	"testing"
 
 	"github.com/gostaticanalysis/testutil"
@@ -8,8 +11,8 @@ import (
 	"golang.org/x/tools/go/analysis/analysistest"
 )
 
-// TestAnalyzer is a test for Analyzer.
 func TestAnalyzer(t *testing.T) {
+	t.Parallel()
 	testdata := testutil.WithModules(t, analysistest.TestData(), nil)
 	analysistest.Run(t, testdata, notany.NewAnalyzer(
 		notany.Target{
@@ -119,6 +122,11 @@ func TestAnalyzer(t *testing.T) {
 		},
 	), "a")
 
+}
+
+func TestAnalyzer_pkgpath_different_from_pkgname(t *testing.T) {
+	t.Parallel()
+	testdata := testutil.WithModules(t, analysistest.TestData(), nil)
 	analysistest.Run(t, testdata, notany.NewAnalyzer(
 		notany.Target{
 			PkgPath:  "github.com/qawatake/a/b",
@@ -139,8 +147,10 @@ func TestAnalyzer(t *testing.T) {
 }
 
 func TestAnalyzer_out_of_range(t *testing.T) {
+	t.Parallel()
 	testdata := testutil.WithModules(t, analysistest.TestData(), nil)
-	analysistest.Run(t, testdata, notany.NewAnalyzer(
+	treporter := NewAnalysisErrorReporter(1)
+	analysistest.Run(treporter, testdata, notany.NewAnalyzer(
 		notany.Target{
 			PkgPath:  "oor",
 			FuncName: "OutOfRange",
@@ -153,16 +163,25 @@ func TestAnalyzer_out_of_range(t *testing.T) {
 				},
 			},
 		}), "oor")
+	errs := treporter.Errors()
+	want := notany.ErrArgPosOutOfRange{
+		PkgPath:  "oor",
+		FuncName: "OutOfRange",
+		ArgPos:   1,
+	}
+	if len(errs) != 1 {
+		t.Errorf("err expected but not found: %v", want)
+	}
+	if !errors.Is(errs[0], want) {
+		t.Errorf("got %v, want %v", errs[0], want)
+	}
 }
 
-func TestAnalyzer_invalid_cfg(t *testing.T) {
+func TestAnalyzer_invalid_func_name(t *testing.T) {
+	t.Parallel()
 	testdata := testutil.WithModules(t, analysistest.TestData(), nil)
-	called := false
-	panics := func(v any) {
-		called = true
-	}
-	notany.SetPanics(panics)
-	analysistest.Run(t, testdata, notany.NewAnalyzer(
+	treporter := NewAnalysisErrorReporter(1)
+	analysistest.Run(treporter, testdata, notany.NewAnalyzer(
 		notany.Target{
 			PkgPath:  "a",
 			FuncName: ".Struct.Scan", // too much periods
@@ -178,7 +197,46 @@ func TestAnalyzer_invalid_cfg(t *testing.T) {
 				},
 			},
 		}), "empty")
-	if !called {
-		t.Error("panic expected but not called")
+	errs := treporter.Errors()
+	want := notany.ErrInvalidFuncName{
+		FuncName: ".Struct.Scan",
 	}
+	if len(errs) != 1 {
+		t.Errorf("err expected but not found: %v", want)
+	}
+	if !errors.Is(errs[0], want) {
+		t.Errorf("got %v, want %v", errs[0], want)
+	}
+}
+
+var _ analysistest.Testing = (*analysisErrorReporter)(nil)
+
+type analysisErrorReporter struct {
+	sync.RWMutex
+	errs []error
+}
+
+func NewAnalysisErrorReporter(expected int) *analysisErrorReporter {
+	return &analysisErrorReporter{
+		errs: make([]error, 0, expected),
+	}
+}
+
+func (r *analysisErrorReporter) Errorf(format string, args ...any) {
+	errs := make([]error, 0, len(args))
+	for _, arg := range args {
+		if err, ok := arg.(error); ok {
+			errs = append(errs, err)
+		}
+	}
+	errs = append(errs, fmt.Errorf(format, args...))
+	r.Lock()
+	defer r.Unlock()
+	r.errs = append(r.errs, errors.Join(errs...))
+}
+
+func (r *analysisErrorReporter) Errors() []error {
+	r.RLock()
+	defer r.RUnlock()
+	return r.errs[:]
 }
