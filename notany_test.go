@@ -170,7 +170,7 @@ func TestAnalyzer_out_of_range(t *testing.T) {
 		ArgPos:   1,
 	}
 	if len(errs) != 1 {
-		t.Errorf("err expected but not found: %v", want)
+		t.Fatalf("err expected but not found: %v", want)
 	}
 	if !errors.Is(errs[0], want) {
 		t.Errorf("got %v, want %v", errs[0], want)
@@ -202,7 +202,7 @@ func TestAnalyzer_invalid_func_name(t *testing.T) {
 		FuncName: ".Struct.Scan",
 	}
 	if len(errs) != 1 {
-		t.Errorf("err expected but not found: %v", want)
+		t.Fatalf("err expected but not found: %v", want)
 	}
 	if !errors.Is(errs[0], want) {
 		t.Errorf("got %v, want %v", errs[0], want)
@@ -237,7 +237,75 @@ func TestAnalyzer_not_found_allowed(t *testing.T) {
 		Name:        "Stringer",
 	}
 	if len(errs) != 1 {
-		t.Errorf("err expected but not found: %v", want)
+		t.Fatalf("err expected but not found: %v", want)
+	}
+	if !errors.Is(errs[0], want) {
+		t.Errorf("got %v, want %v", errs[0], want)
+	}
+}
+
+func TestAnalyzer_not_func(t *testing.T) {
+	t.Parallel()
+	testdata := testutil.WithModules(t, analysistest.TestData(), nil)
+	treporter := NewAnalysisErrorReporter(1)
+	analysistest.Run(treporter, testdata, notany.NewAnalyzer(
+		notany.Target{
+			PkgPath:  "notfunc",
+			FuncName: "Int",
+			ArgPos:   0,
+			Allowed: []notany.Allowed{
+				{
+					PkgPath:  "",
+					TypeName: "int",
+				},
+				// not found
+				{
+					PkgPath:  "fmt",
+					TypeName: "Stringer",
+				},
+			},
+		}), "notfunc")
+	errs := treporter.Errors()
+	want := notany.ErrNotFunc{
+		PkgPath:  "notfunc",
+		FuncName: "Int",
+	}
+	if len(errs) != 1 {
+		t.Fatalf("err expected but not found: %v", want)
+	}
+	if !errors.Is(errs[0], want) {
+		t.Errorf("got %v, want %v", errs[0], want)
+	}
+}
+
+func TestAnalyzer_not_method(t *testing.T) {
+	t.Parallel()
+	testdata := testutil.WithModules(t, analysistest.TestData(), nil)
+	treporter := NewAnalysisErrorReporter(1)
+	analysistest.Run(treporter, testdata, notany.NewAnalyzer(
+		notany.Target{
+			PkgPath:  "notmethod",
+			FuncName: "S.Field",
+			ArgPos:   0,
+			Allowed: []notany.Allowed{
+				{
+					PkgPath:  "",
+					TypeName: "int",
+				},
+				// not found
+				{
+					PkgPath:  "fmt",
+					TypeName: "Stringer",
+				},
+			},
+		}), "notmethod")
+	errs := treporter.Errors()
+	want := notany.ErrNotFunc{
+		PkgPath:  "notmethod",
+		FuncName: "Int",
+	}
+	if len(errs) != 1 {
+		t.Fatalf("err expected but not found: %v", want)
 	}
 	if !errors.Is(errs[0], want) {
 		t.Errorf("got %v, want %v", errs[0], want)

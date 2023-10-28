@@ -291,3 +291,22 @@ func newErrIdentNotFound(fromPkgPath, pkgPath, name string) errIdentNotFound {
 func (e errIdentNotFound) Error() string {
 	return fmt.Sprintf("%[1]s.%[2]s is not found from %[3]s or its imports. Import %[1]s to %[3]s", e.PkgPath, e.Name, e.FromPkgPath)
 }
+
+type errNotFunc struct {
+	PkgPath  string
+	FuncName string
+}
+
+func (e errNotFunc) Error() string {
+	return fmt.Sprintf("%s.%s is not a function.", e.PkgPath, e.FuncName)
+}
+
+type errNotMethod struct {
+	PkgPath    string
+	Recv       string
+	MethodName string
+}
+
+func (e errNotMethod) Error() string {
+	return fmt.Sprintf("%s.%s.%s is not a method.", e.PkgPath, e.MethodName, e.Recv)
+}
