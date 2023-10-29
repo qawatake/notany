@@ -14,6 +14,7 @@ import (
 
 const name = "notany"
 const doc = "notany limits possible types for arguments of any type"
+const url = "https://pkg.go.dev/github.com/qawatake/notany"
 
 func NewAnalyzer(targets ...Target) *analysis.Analyzer {
 	r := &runner{
@@ -22,6 +23,7 @@ func NewAnalyzer(targets ...Target) *analysis.Analyzer {
 	return &analysis.Analyzer{
 		Name: name,
 		Doc:  doc,
+		URL:  url,
 		Run:  r.run,
 		Requires: []*analysis.Analyzer{
 			inspect.Analyzer,
