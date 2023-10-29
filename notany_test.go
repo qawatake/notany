@@ -14,9 +14,9 @@ import (
 func TestAnalyzer(t *testing.T) {
 	t.Parallel()
 	testdata := testutil.WithModules(t, analysistest.TestData(), nil)
-	analysistest.Run(t, testdata, notany.NewAnalyzer(
+	analysistest.Run(t, testdata+"/src/a", notany.NewAnalyzer(
 		notany.Target{
-			PkgPath:  "a",
+			PkgPath:  "github.com/a",
 			FuncName: "Target",
 			ArgPos:   1,
 			Allowed: []notany.Allowed{
@@ -39,7 +39,7 @@ func TestAnalyzer(t *testing.T) {
 			},
 		},
 		notany.Target{
-			PkgPath:  "a",
+			PkgPath:  "github.com/a",
 			FuncName: "Target3",
 			ArgPos:   1,
 			Allowed: []notany.Allowed{
@@ -74,7 +74,7 @@ func TestAnalyzer(t *testing.T) {
 			ArgPos:   0,
 			Allowed: []notany.Allowed{
 				{
-					PkgPath:  "a",
+					PkgPath:  "github.com/a",
 					TypeName: "MyInt",
 				},
 			},
@@ -95,7 +95,7 @@ func TestAnalyzer(t *testing.T) {
 			},
 		},
 		notany.Target{
-			PkgPath:  "a",
+			PkgPath:  "github.com/a",
 			FuncName: "Struct.Scan",
 			ArgPos:   0,
 			Allowed: []notany.Allowed{
@@ -104,13 +104,13 @@ func TestAnalyzer(t *testing.T) {
 					TypeName: "int",
 				},
 				{
-					PkgPath:  "a",
+					PkgPath:  "github.com/a",
 					TypeName: "MyInt",
 				},
 			},
 		},
 		notany.Target{
-			PkgPath:  "a",
+			PkgPath:  "github.com/a",
 			FuncName: "*Struct.Scan2",
 			ArgPos:   0,
 			Allowed: []notany.Allowed{
@@ -120,7 +120,7 @@ func TestAnalyzer(t *testing.T) {
 				},
 			},
 		},
-	), "a")
+	), "github.com/a")
 
 }
 

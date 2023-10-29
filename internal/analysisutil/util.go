@@ -46,6 +46,9 @@ func TypeOfBFS(pkg *types.Package, path, name string) types.Type {
 
 func ObjectOfBFS(pkg *types.Package, path, name string) types.Object {
 	lookupper := newLookupperBFS(pkg)
+	if found := lookupper.checkAndPush(pkg, path, name); found != nil {
+		return found
+	}
 	return lookupper.Lookup(path, name)
 }
 
@@ -59,7 +62,6 @@ func newLookupperBFS(pkg *types.Package) *lookupperBFS {
 		seen:  make(map[*types.Package]struct{}),
 		queue: list.New(),
 	}
-	lookupper.queue.PushBack(pkg)
 	return lookupper
 }
 
@@ -69,8 +71,7 @@ func (lookup *lookupperBFS) Lookup(path, name string) types.Object {
 		return nil
 	}
 	for _, imp := range pkg.Imports() {
-		found := lookup.checkAndPush(imp, path, name)
-		if found != nil {
+		if found := lookup.checkAndPush(imp, path, name); found != nil {
 			return found
 		}
 	}
@@ -94,14 +95,14 @@ func (lookup *lookupperBFS) pop() *types.Package {
 }
 
 func (lookup *lookupperBFS) checkAndPush(pkg *types.Package, path, name string) types.Object {
+	if analysisutil.RemoveVendor(pkg.Path()) == analysisutil.RemoveVendor(path) {
+		return pkg.Scope().Lookup(name)
+	}
 	if _, ok := lookup.seen[pkg]; ok {
 		return nil
 	}
 	if isStdLib(pkg) {
 		return nil
-	}
-	if analysisutil.RemoveVendor(pkg.Path()) == analysisutil.RemoveVendor(path) {
-		return pkg.Scope().Lookup(name)
 	}
 	lookup.seen[pkg] = struct{}{}
 	lookup.queue.PushBack(pkg)
@@ -142,5 +143,5 @@ func isStdLib(pkg *types.Package) bool {
 	if i < 0 {
 		i = len(path)
 	}
-	return strings.Contains(path[:i], ".")
+	return !strings.Contains(path[:i], ".")
 }
