@@ -102,7 +102,11 @@ func toAnalysisTargets(pass *analysis.Pass, targets []Target) ([]*analysisTarget
 				}
 				continue
 			}
-			if t := analysisutil.TypeOfBFS(pass.Pkg, a.PkgPath, a.TypeName); t != nil {
+			if t := analysisutil.TypeOf(pass, a.PkgPath, a.TypeName); t != nil {
+				allowed[t] = struct{}{}
+				continue
+			}
+			if t := analysisutil.TypeOfBFS(ft.Pkg(), a.PkgPath, a.TypeName); t != nil {
 				allowed[t] = struct{}{}
 				continue
 			}

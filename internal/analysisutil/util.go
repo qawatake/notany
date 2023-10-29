@@ -2,6 +2,7 @@ package analysisutil
 
 import (
 	"go/types"
+	"strings"
 
 	"container/list"
 
@@ -63,6 +64,20 @@ func newLookupperBFS(pkg *types.Package) *lookupperBFS {
 }
 
 func (lookup *lookupperBFS) Lookup(path, name string) types.Object {
+	pkg := lookup.pop()
+	if pkg == nil {
+		return nil
+	}
+	for _, imp := range pkg.Imports() {
+		found := lookup.checkAndPush(imp, path, name)
+		if found != nil {
+			return found
+		}
+	}
+	return lookup.Lookup(path, name)
+}
+
+func (lookup *lookupperBFS) pop() *types.Package {
 	if lookup.queue.Len() == 0 {
 		return nil
 	}
@@ -75,17 +90,22 @@ func (lookup *lookupperBFS) Lookup(path, name string) types.Object {
 	if !ok {
 		return nil
 	}
+	return pkg
+}
+
+func (lookup *lookupperBFS) checkAndPush(pkg *types.Package, path, name string) types.Object {
+	if _, ok := lookup.seen[pkg]; ok {
+		return nil
+	}
+	if isStdLib(pkg) {
+		return nil
+	}
 	if analysisutil.RemoveVendor(pkg.Path()) == analysisutil.RemoveVendor(path) {
 		return pkg.Scope().Lookup(name)
 	}
-	for _, imp := range pkg.Imports() {
-		if _, ok := lookup.seen[imp]; ok {
-			continue
-		}
-		lookup.seen[imp] = struct{}{}
-		lookup.queue.PushBack(imp)
-	}
-	return lookup.Lookup(path, name)
+	lookup.seen[pkg] = struct{}{}
+	lookup.queue.PushBack(pkg)
+	return nil
 }
 
 // copied and modified from https://github.com/gostaticanalysis/analysisutil/blob/ccfdecf515f47e636ba164ce0e5f26810eaf8747/types.go#L31
@@ -114,4 +134,13 @@ func TypeOf(pass *analysis.Pass, pkg, name string) types.Type {
 
 func MethodOf(typ types.Type, name string) *types.Func {
 	return analysisutil.MethodOf(typ, name)
+}
+
+func isStdLib(pkg *types.Package) bool {
+	path := pkg.Path()
+	i := strings.Index(path, "/")
+	if i < 0 {
+		i = len(path)
+	}
+	return strings.Contains(path[:i], ".")
 }
