@@ -245,7 +245,7 @@ func TestAnalyzer_not_found_allowed(t *testing.T) {
 }
 
 func TestAnalyzer_not_func(t *testing.T) {
-	// t.Parallel()
+	t.Parallel()
 	testdata := testutil.WithModules(t, analysistest.TestData(), nil)
 	treporter := NewAnalysisErrorReporter(1)
 	analysistest.Run(treporter, testdata, notany.NewAnalyzer(
@@ -279,7 +279,7 @@ func TestAnalyzer_not_func(t *testing.T) {
 }
 
 func TestAnalyzer_not_method(t *testing.T) {
-	// t.Parallel()
+	t.Parallel()
 	testdata := testutil.WithModules(t, analysistest.TestData(), nil)
 	treporter := NewAnalysisErrorReporter(1)
 	analysistest.Run(treporter, testdata, notany.NewAnalyzer(
@@ -311,6 +311,37 @@ func TestAnalyzer_not_method(t *testing.T) {
 	if !errors.Is(errs[0], want) {
 		t.Errorf("got %v, want %v", errs[0], want)
 	}
+}
+
+func TestAnalyzer_target_not_found(t *testing.T) {
+	t.Parallel()
+	testdata := testutil.WithModules(t, analysistest.TestData(), nil)
+	analysistest.Run(t, testdata, notany.NewAnalyzer(
+		notany.Target{
+			PkgPath:  "target_notfound",
+			FuncName: "Func",
+			ArgPos:   0,
+			Allowed: []notany.Allowed{
+				// not found
+				{
+					PkgPath:  "time",
+					TypeName: "Time",
+				},
+			},
+		},
+		notany.Target{
+			PkgPath:  "target_notfound",
+			FuncName: "S.Func",
+			ArgPos:   0,
+			Allowed: []notany.Allowed{
+				// not found
+				{
+					PkgPath:  "fmt",
+					TypeName: "Stringer",
+				},
+			},
+		},
+	), "target_notfound")
 }
 
 func TestAnalyzer_target_unused(t *testing.T) {
