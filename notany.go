@@ -1,6 +1,7 @@
 package notany
 
 import (
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/types"
@@ -82,7 +83,10 @@ func toAnalysisTargets(pass *analysis.Pass, targets []Target) ([]*analysisTarget
 		t := t
 		ft, err := funcObjectOf(pass, t)
 		if err != nil {
-			return nil, err
+			if !errors.Is(err, targetNotFound) {
+				return nil, err
+			}
+			continue
 		}
 		allowed := make(map[types.Type]struct{})
 		for _, a := range t.Allowed {
@@ -166,7 +170,7 @@ func funcObjectOf(pass *analysis.Pass, t Target) (*types.Func, error) {
 		obj := analysisutil.ObjectOf(pass, t.PkgPath, t.FuncName)
 		if obj == nil {
 			// not found is ok because func need not to be called.
-			return nil, nil
+			return nil, targetNotFound
 		}
 		ft, ok := obj.(*types.Func)
 		if !ok {
@@ -184,7 +188,7 @@ func funcObjectOf(pass *analysis.Pass, t Target) (*types.Func, error) {
 	recvType := analysisutil.TypeOf(pass, t.PkgPath, recv)
 	if recvType == nil {
 		// not found is ok because method need not to be called.
-		return nil, nil
+		return nil, targetNotFound
 	}
 	m := analysisutil.MethodOf(recvType, method)
 	if m == nil {
@@ -246,6 +250,8 @@ func x(pass *analysis.Pass, targets []*analysisTarget, n *ast.CallExpr, f *ast.I
 	}
 	return nil
 }
+
+var targetNotFound = errors.New("target not found")
 
 type notAllowed struct {
 	ArgExpr ast.Expr
