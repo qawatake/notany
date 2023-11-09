@@ -328,7 +328,20 @@ func TestAnalyzer_target_not_found(t *testing.T) {
 					TypeName: "Time",
 				},
 			},
-		}), "target_notfound")
+		},
+		notany.Target{
+			PkgPath:  "target_notfound",
+			FuncName: "S.Func",
+			ArgPos:   0,
+			Allowed: []notany.Allowed{
+				// not found
+				{
+					PkgPath:  "fmt",
+					TypeName: "Stringer",
+				},
+			},
+		},
+	), "target_notfound")
 }
 
 func TestAnalyzer_target_unused(t *testing.T) {
