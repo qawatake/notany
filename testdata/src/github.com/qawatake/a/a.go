@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/qawatake/a/b"
-	_ "github.com/qawatake/a/c"
 )
 
 func f() {
