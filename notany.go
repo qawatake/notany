@@ -109,7 +109,7 @@ func toAnalysisTargets(pass *analysis.Pass, targets []Target) ([]*analysisTarget
 				continue
 			}
 			if t := analysisutil.TypeOfBFS(pass.Pkg, a.PkgPath, a.TypeName); t != nil {
-				allowed[t] = struct{}{}
+				allowed[types.Unalias(t)] = struct{}{}
 				continue
 			}
 			return nil, newErrIdentNotFound(pass.Pkg.Path(), a.PkgPath, a.TypeName)
@@ -148,6 +148,9 @@ func (a *analysisTarget) validate() error {
 }
 
 func (a *analysisTarget) Allow(t types.Type) bool {
+	// Since Go 1.23 (gotypesalias=1), alias types are represented by *types.Alias
+	// instead of their actual types, so resolve them before the lookup.
+	t = types.Unalias(t)
 	if _, ok := a.Allowed[t]; ok {
 		return true
 	}
